@@ -1,2 +1,3 @@
 swarm.key
 docker-compose.yml
+aws/.terraform*
