@@ -11,10 +11,16 @@ import (
 
 type Deployer struct {
 	containerID string
+	client      *client.Client
 }
 
-func New() *Deployer {
-	return &Deployer{}
+func New() (*Deployer, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, fmt.Errorf("unable to get docker client: %w", err)
+	}
+
+	return &Deployer{client: cli}, nil
 }
 
 func (d *Deployer) Start(ctx context.Context) error {
@@ -22,28 +28,23 @@ func (d *Deployer) Start(ctx context.Context) error {
 		return fmt.Errorf("container %s is already running", d.containerID)
 	}
 
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return fmt.Errorf("unable to get docker client: %w", err)
-	}
-
-	_, err = cli.ImagePull(ctx, "ipfs/go-ipfs", types.ImagePullOptions{})
+	_, err := d.client.ImagePull(ctx, "ipfs/go-ipfs", types.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to pull the image: %w", err)
 	}
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
+	resp, err := d.client.ContainerCreate(ctx, &container.Config{
 		Image: "ipfs/go-ipfs",
 	}, nil, nil, nil, "")
 	if err != nil {
 		return fmt.Errorf("unable to create container: %w", err)
 	}
 
-	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err := d.client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		panic(err)
 	}
 
-	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	statusCh, errCh := d.client.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
@@ -57,12 +58,7 @@ func (d *Deployer) Start(ctx context.Context) error {
 }
 
 func (d *Deployer) Logs(ctx context.Context) ([]byte, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return nil, fmt.Errorf("unable to get docker client: %w", err)
-	}
-
-	out, err := cli.ContainerLogs(ctx, d.containerID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	out, err := d.client.ContainerLogs(ctx, d.containerID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
 	if err != nil {
 		return nil, fmt.Errorf("unable to get container logs: %w", err)
 	}
