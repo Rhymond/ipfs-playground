@@ -1,6 +1,8 @@
 resource "aws_vpc" "vpc" {
-  cidr_block = var.cidr
-  tags       = {
+  cidr_block           = var.cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+  tags                 = {
     Name = "${var.app_name}-vpc"
   }
 }
@@ -13,22 +15,10 @@ resource "aws_internet_gateway" "gateway" {
 }
 
 resource "aws_subnet" "public" {
-  vpc_id            = aws_vpc.vpc.id
-  count             = length(var.public_subnets)
-  cidr_block        = element(var.public_subnets, count.index)
-  availability_zone = element(var.availability_zones, count.index)
-  tags              = {
+  vpc_id     = aws_vpc.vpc.id
+  cidr_block = var.public_subnet
+  tags       = {
     Name = "${var.app_name}-public-subnet"
-  }
-}
-
-resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.vpc.id
-  count             = length(var.private_subnets)
-  cidr_block        = element(var.private_subnets, count.index)
-  availability_zone = element(var.availability_zones, count.index)
-  tags              = {
-    Name = "${var.app_name}-private-subnet"
   }
 }
 
@@ -46,8 +36,6 @@ resource "aws_route" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(var.public_subnets)
-  subnet_id      = element(aws_subnet.public.*.id, count.index)
+  subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
-

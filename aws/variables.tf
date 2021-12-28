@@ -18,14 +18,11 @@ variable "cidr" {
   description = "The CIDR block for the VPC."
 }
 
-variable "public_subnets" {
+variable "public_subnet" {
   description = "List of public subnets"
 }
 
-variable "private_subnets" {
-  description = "List of private subnets"
-}
-
-variable "availability_zones" {
-  description = "List of availability zones"
+variable "instance_type" {
+  description = "EC2 instance type"
+  default     = "t2.micro"
 }
